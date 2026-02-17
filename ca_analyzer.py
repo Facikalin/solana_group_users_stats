@@ -3,27 +3,43 @@ from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 
 SOLANA_CA_REGEX = re.compile(r'\b[1-9A-HJ-NP-Za-km-z]{32,44}\b')
+MAX_CA_PER_MESSAGE = 3  # Bot spam filtre
 
-async def analyze_last_month(client, group):
+async def analyze_last_week(client, group):
     now = datetime.now(timezone.utc)
-    one_month_ago = now - timedelta(days=30)
+    one_week_ago = now - timedelta(days=7)
 
-    user_token_map = defaultdict(set)
-    user_message_count = defaultdict(int)
+    token_data = {}
 
-    print("\nSon 1 ay mesajları analiz ediliyor...")
+    print("\nSon 1 hafta mesajları analiz ediliyor...")
 
-    async for message in client.iter_messages(group, offset_date=one_month_ago):
-        if not message.text or not message.sender_id:
+    async for message in client.iter_messages(group, offset_date=one_week_ago):
+
+        if not message.text:
             continue
 
         matches = SOLANA_CA_REGEX.findall(message.text)
 
-        if matches:
-            sender = message.sender_id
-            user_message_count[sender] += 1
+        if not matches:
+            continue
 
-            for ca in matches:
-                user_token_map[sender].add(ca)
+        if len(matches) > MAX_CA_PER_MESSAGE:
+            continue
 
-    return user_token_map, user_message_count
+        sender = await message.get_sender()
+        if not sender:
+            continue
+
+        username = sender.username if sender.username else sender.first_name
+
+        for ca in matches:
+
+            if ca not in token_data:
+                token_data[ca] = {
+                    "first_seen": message.date,
+                    "callers": set([username])
+                }
+            else:
+                token_data[ca]["callers"].add(username)
+
+    return token_data
