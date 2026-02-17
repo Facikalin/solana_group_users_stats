@@ -1,5 +1,8 @@
-# Main entry point for the Solana group users stats project
+import asyncio
+from group_selector import select_group
+
+async def main():
+    selected_group = await select_group()
 
 if __name__ == "__main__":
-    print("Solana Group Users Stats project started.")
-    # TODO: Add main logic here
+    asyncio.run(main())
